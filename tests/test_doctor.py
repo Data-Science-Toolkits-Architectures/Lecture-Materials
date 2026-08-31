@@ -327,3 +327,31 @@ def test_guarded_turns_an_exception_into_a_failed_check():
 def test_guarded_passes_a_good_result_through_untouched():
     good = doctor.Result("git", doctor.Status.PASS, "2.51.0")
     assert doctor.guarded("git", lambda: good) is good
+
+
+def test_collect_survives_a_probe_that_raises(monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
+    monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
+    monkeypatch.setattr(doctor, "probe_cloud_roots", boom)
+    results, facts = doctor.collect_stage_0()
+    assert isinstance(facts, dict)
+    assert len(results) == len(doctor.CHECK_ORDER)
+    path_result = next(r for r in results if r.id == "path")
+    assert path_result.status is doctor.Status.FAIL
+    assert "RuntimeError" in path_result.detail
+
+
+def test_collect_survives_a_git_identity_lookup_that_raises(monkeypatch):
+    def boom(argv):
+        raise OSError("subprocess exploded")
+
+    monkeypatch.setattr(doctor, "run_tool", boom)
+    monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
+    results, _ = doctor.collect_stage_0()
+    assert len(results) == len(doctor.CHECK_ORDER)
+    identity = next(r for r in results if r.id == "git-identity")
+    assert identity.status is doctor.Status.FAIL
+    assert identity.remedy

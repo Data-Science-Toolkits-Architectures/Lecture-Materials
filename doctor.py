@@ -154,7 +154,7 @@ def judge_git(code: int, out: str) -> Result:
 def judge_git_identity(name: str, email: str) -> Result:
     missing = [k for k, v in (("user.name", name), ("user.email", email)) if not v.strip()]
     if not missing:
-        return Result("git-identity", Status.PASS, email.strip())
+        return Result("git-identity", Status.PASS, "name and email set")
     commands = " and ".join(f'git config --global {k} "..."' for k in missing)
     return Result(
         "git-identity",
@@ -339,7 +339,7 @@ def judge_path(path: Path, cloud_roots: list[Path]) -> Result:
             "the path contains accented characters",
             remedy=MOVE_REMEDY + " Tell us if your user folder name is the problem.",
         )
-    return Result("path", Status.PASS, f"{text} clean")
+    return Result("path", Status.PASS, "clean")
 
 
 def probe_cloud_roots() -> list[Path]:
@@ -362,7 +362,7 @@ def probe_cloud_roots() -> list[Path]:
 
 
 WIDTH = 79
-ALLOWED_FACTS = ("os", "release", "arch", "memory", "disk")
+ALLOWED_FACTS = ("os", "arch")
 NETWORK_HOSTS = ("github.com", "pypi.org")
 
 CHECK_ORDER = [
@@ -432,6 +432,15 @@ def _disk_free_bytes() -> int:
     return int(probe_machine()["disk_free_bytes"])
 
 
+def _git_identity() -> tuple[str, str]:
+    name_code, name_out = run_tool(["git", "config", "--global", "user.name"])
+    mail_code, mail_out = run_tool(["git", "config", "--global", "user.email"])
+    return (
+        name_out if name_code == 0 else "",
+        mail_out if mail_code == 0 else "",
+    )
+
+
 def collect_stage_0() -> tuple[list[Result], dict[str, str]]:
     try:
         machine = probe_machine()
@@ -444,20 +453,12 @@ def collect_stage_0() -> tuple[list[Result], dict[str, str]]:
     except Exception:
         facts = {}
 
-    name_code, name_out = run_tool(["git", "config", "--global", "user.name"])
-    mail_code, mail_out = run_tool(["git", "config", "--global", "user.email"])
-
     results = [
         guarded("shell", lambda: judge_shell(probe_pwsh())),
         guarded("memory", lambda: judge_memory(_memory_bytes())),
         guarded("disk", lambda: judge_disk(_disk_free_bytes())),
         guarded("git", lambda: judge_git(*run_tool(["git", "--version"]))),
-        guarded(
-            "git-identity",
-            lambda: judge_git_identity(
-                name_out if name_code == 0 else "", mail_out if mail_code == 0 else ""
-            ),
-        ),
+        guarded("git-identity", lambda: judge_git_identity(*_git_identity())),
         guarded("uv", lambda: judge_uv(*run_tool(["uv", "--version"]))),
         guarded("python", lambda: judge_python(*run_tool(["uv", "python", "find", "3.13"]))),
         guarded("docker-cli", lambda: judge_docker_cli(*run_tool(["docker", "--version"]))),
