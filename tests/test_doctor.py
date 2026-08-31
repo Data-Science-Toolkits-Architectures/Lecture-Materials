@@ -255,3 +255,75 @@ def test_cloud_roots_survives_a_home_directory_that_cannot_be_resolved(monkeypat
     monkeypatch.delenv("OneDriveCommercial", raising=False)
     monkeypatch.delenv("OneDriveConsumer", raising=False)
     assert doctor.probe_cloud_roots() == []
+
+
+def test_report_is_ascii_only():
+    results = [doctor.Result("git", doctor.Status.PASS, "2.51.0")]
+    text = doctor.render_report(results, {"os": "Darwin", "arch": "arm64"})
+    assert text.isascii()
+
+
+def test_report_counts_each_status():
+    results = [
+        doctor.Result("a", doctor.Status.PASS, "ok"),
+        doctor.Result("b", doctor.Status.FAIL, "no", remedy="fix"),
+        doctor.Result("c", doctor.Status.WARN, "hm"),
+    ]
+    text = doctor.render_report(results, {})
+    assert "1 passed, 1 failed, 1 warned" in text
+
+
+def test_report_never_prints_a_value_that_looks_like_a_secret():
+    results = [doctor.Result("env", doctor.Status.PASS, "WANDB_API_KEY present")]
+    text = doctor.render_report(results, {"WANDB_API_KEY": "abcdef0123456789"})
+    assert "abcdef0123456789" not in text
+
+
+def test_report_is_delimited_so_a_student_can_copy_it_whole():
+    text = doctor.render_report([], {})
+    assert text.startswith("-")
+    assert text.rstrip().endswith("-")
+
+
+def test_network_passes_when_every_host_answers():
+    r = doctor.judge_network({"github.com": True, "pypi.org": True})
+    assert r.status is doctor.Status.PASS
+
+
+def test_network_only_warns_and_names_the_unreachable_host():
+    r = doctor.judge_network({"github.com": True, "pypi.org": False})
+    assert r.status is doctor.Status.WARN
+    assert "pypi.org" in r.detail
+
+
+def test_clean_run_tells_the_student_to_send_nothing():
+    line = doctor.closing_line([doctor.Result("a", doctor.Status.PASS, "ok")])
+    assert "Nothing to send" in line
+
+
+def test_a_warning_alone_still_needs_nothing_sent():
+    line = doctor.closing_line([doctor.Result("a", doctor.Status.WARN, "small")])
+    assert "Nothing to send" in line
+
+
+def test_a_failure_tells_the_student_to_email_the_block():
+    line = doctor.closing_line(
+        [doctor.Result("a", doctor.Status.FAIL, "no", remedy="fix it")]
+    )
+    assert "email" in line.lower()
+    assert "DSTA setup" in line
+
+
+def test_guarded_turns_an_exception_into_a_failed_check():
+    def boom():
+        raise RuntimeError("something unexpected")
+
+    r = doctor.guarded("path", boom)
+    assert r.status is doctor.Status.FAIL
+    assert "RuntimeError" in r.detail
+    assert r.remedy
+
+
+def test_guarded_passes_a_good_result_through_untouched():
+    good = doctor.Result("git", doctor.Status.PASS, "2.51.0")
+    assert doctor.guarded("git", lambda: good) is good

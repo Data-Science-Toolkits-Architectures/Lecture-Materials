@@ -6,12 +6,15 @@
 
 from __future__ import annotations
 
+import argparse
 import configparser
+import datetime
 import enum
 import os
 import platform
 import re
 import shutil
+import socket
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -356,3 +359,152 @@ def probe_cloud_roots() -> list[Path]:
         except OSError:
             continue
     return roots
+
+
+WIDTH = 79
+ALLOWED_FACTS = ("os", "release", "arch", "memory", "disk")
+NETWORK_HOSTS = ("github.com", "pypi.org")
+
+CHECK_ORDER = [
+    "shell", "memory", "disk", "git", "git-identity", "uv", "python",
+    "docker-cli", "docker-daemon", "docker-run", "wsl", "wslconfig",
+    "path", "network",
+]
+
+
+def render_report(results: list[Result], facts: dict[str, str]) -> str:
+    head = " DSTA SETUP REPORT "
+    pad = (WIDTH - len(head)) // 2
+    lines = ["-" * pad + head + "-" * (WIDTH - pad - len(head))]
+    stamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    lines.append(f"doctor.py {VERSION}   stage 0   {stamp}")
+    for key in ALLOWED_FACTS:
+        if key in facts:
+            lines.append(f"{key:<14}{facts[key]}")
+    for r in results:
+        lines.append(f"{r.id:<14}{r.status.value}  {r.detail}")
+    counts = {s: sum(1 for r in results if r.status is s) for s in Status}
+    lines.append(
+        f"{'result':<14}{counts[Status.PASS]} passed, "
+        f"{counts[Status.FAIL]} failed, {counts[Status.WARN]} warned"
+    )
+    lines.append("-" * WIDTH)
+    return "\n".join(lines) + "\n"
+
+
+def probe_network(host: str, port: int = 443, timeout: float = 5.0) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def judge_network(reachable: dict[str, bool]) -> Result:
+    down = sorted(h for h, ok in reachable.items() if not ok)
+    if not down:
+        return Result("network", Status.PASS, " ".join(f"{h} ok" for h in sorted(reachable)))
+    return Result(
+        "network",
+        Status.WARN,
+        f"cannot reach {', '.join(down)}",
+        remedy="If you are on a university or company network, tell us and we will look at it.",
+    )
+
+
+def guarded(check_id: str, fn, *args) -> Result:
+    try:
+        return fn(*args)
+    except Exception as exc:  # noqa: BLE001
+        return Result(
+            check_id,
+            Status.FAIL,
+            f"this check could not run: {type(exc).__name__}",
+            remedy="Send us this report. This is our problem to fix, not yours.",
+        )
+
+
+def _memory_bytes() -> int:
+    return int(probe_machine()["memory_bytes"])
+
+
+def _disk_free_bytes() -> int:
+    return int(probe_machine()["disk_free_bytes"])
+
+
+def collect_stage_0() -> tuple[list[Result], dict[str, str]]:
+    try:
+        machine = probe_machine()
+        facts = {
+            "os": f"{machine['os']} {machine['release']}",
+            "arch": str(machine["arch"]),
+            "memory": f"{_gb(int(machine['memory_bytes']))} GB",
+            "disk": f"{_gb(int(machine['disk_free_bytes']))} GB free",
+        }
+    except Exception:
+        facts = {}
+
+    name_code, name_out = run_tool(["git", "config", "--global", "user.name"])
+    mail_code, mail_out = run_tool(["git", "config", "--global", "user.email"])
+
+    results = [
+        guarded("shell", lambda: judge_shell(probe_pwsh())),
+        guarded("memory", lambda: judge_memory(_memory_bytes())),
+        guarded("disk", lambda: judge_disk(_disk_free_bytes())),
+        guarded("git", lambda: judge_git(*run_tool(["git", "--version"]))),
+        guarded(
+            "git-identity",
+            lambda: judge_git_identity(
+                name_out if name_code == 0 else "", mail_out if mail_code == 0 else ""
+            ),
+        ),
+        guarded("uv", lambda: judge_uv(*run_tool(["uv", "--version"]))),
+        guarded("python", lambda: judge_python(*run_tool(["uv", "python", "find", "3.13"]))),
+        guarded("docker-cli", lambda: judge_docker_cli(*run_tool(["docker", "--version"]))),
+        guarded("docker-daemon", lambda: judge_docker_daemon(*run_tool(["docker", "info"]))),
+        guarded(
+            "docker-run",
+            lambda: judge_docker_run(
+                *run_tool(["docker", "run", "--rm", "hello-world"]), probe_virtualisation()
+            ),
+        ),
+        guarded("wsl", lambda: judge_wsl(*run_tool(["wsl", "--status"]))),
+        guarded("wslconfig", lambda: judge_wslconfig(probe_wslconfig())),
+        guarded("path", lambda: judge_path(Path.cwd().resolve(), probe_cloud_roots())),
+        guarded("network", lambda: judge_network({h: probe_network(h) for h in NETWORK_HOSTS})),
+    ]
+    order = {name: i for i, name in enumerate(CHECK_ORDER)}
+    results.sort(key=lambda r: order[r.id])
+    return results, facts
+
+
+def closing_line(results: list[Result]) -> str:
+    if any(r.status is Status.FAIL for r in results):
+        return "Copy the block above and email it to both lecturers, subject DSTA setup."
+    return "Nothing to send. Your machine is ready."
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Check this machine for the course.")
+    parser.add_argument("--stage", type=int, default=0)
+    parser.add_argument("--only", default=None, help="show one check by id")
+    parser.add_argument("--version", action="store_true")
+    args = parser.parse_args(argv)
+    if args.version:
+        print(VERSION)
+        return 0
+    results, facts = collect_stage_0()
+    if args.only:
+        results = [r for r in results if r.id == args.only]
+    for r in results:
+        print(f"{r.status.value:<5} {r.id:<14} {r.detail}")
+        if r.remedy:
+            print(f"      {r.remedy}")
+    print()
+    print(render_report(results, facts), end="")
+    print(closing_line(results))
+    return exit_code(results)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
