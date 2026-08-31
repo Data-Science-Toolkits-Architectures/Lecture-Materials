@@ -1,6 +1,15 @@
 # Data Science Toolkits & Architectures Course - Materials
 This repository contains the materials (Jupyter Notebooks and sample project code) for the Data Science Toolkits & Architectures course at the University of Lucerne.
 
+### Checking Your Environment
+You run the environment check in this repository. Run this command:
+
+```bash
+uv run doctor.py
+```
+
+If any check fails, the full setup instructions are at `data_science_toolkits_and_architectures/resources/setup/SETUP.md` in the course repository.
+
 ### Repository Structure
 The repository is organized as follows:
 - `Lecture Notebooks`: Contains Jupyter notebooks for each lecture, including code examples and optional exercises.
