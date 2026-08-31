@@ -175,3 +175,25 @@ def test_windows_checks_are_not_applicable_elsewhere(monkeypatch):
     for r in (doctor.judge_shell(False), doctor.judge_wsl(1, ""), doctor.judge_wslconfig(None)):
         assert r.status is doctor.Status.PASS
         assert r.detail == "not applicable"
+
+
+def test_wslconfig_accepts_spaces_around_the_equals(on_windows):
+    r = doctor.judge_wslconfig("[wsl2]\nmemory = 8GB\n")
+    assert r.status is doctor.Status.PASS
+    assert "8GB" in r.detail
+
+
+def test_wslconfig_ignores_a_memory_line_in_another_section(on_windows):
+    r = doctor.judge_wslconfig("[experimental]\nmemory=8GB\n")
+    assert r.status is doctor.Status.WARN
+
+
+def test_wslconfig_warns_rather_than_raising_on_rubbish(on_windows):
+    r = doctor.judge_wslconfig("this is not an ini file at all\n@@@@\n")
+    assert r.status is doctor.Status.WARN
+
+
+def test_wslconfig_unreadable_file_is_treated_as_missing(on_windows):
+    r = doctor.judge_wslconfig(None)
+    assert r.status is doctor.Status.WARN
+    assert "readable" in r.detail

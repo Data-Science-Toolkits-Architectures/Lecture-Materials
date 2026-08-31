@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import configparser
 import enum
 import os
 import platform
@@ -268,7 +269,10 @@ def probe_wslconfig() -> str | None:
     if platform.system() != "Windows":
         return None
     path = Path.home() / ".wslconfig"
-    return path.read_text(encoding="utf-8") if path.is_file() else None
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
 
 
 def judge_wslconfig(text: str | None) -> Result:
@@ -278,15 +282,25 @@ def judge_wslconfig(text: str | None) -> Result:
         return Result(
             "wslconfig",
             Status.WARN,
-            "no .wslconfig in your user folder",
+            "no readable .wslconfig in your user folder",
             remedy="Create it as described in the setup instructions. It matters from the fourth session.",
         )
-    line = next((l.strip() for l in text.splitlines() if l.strip().startswith("memory=")), None)
-    if line is None:
+    parser = configparser.ConfigParser()
+    try:
+        parser.read_string(text)
+    except configparser.Error:
         return Result(
             "wslconfig",
             Status.WARN,
-            ".wslconfig has no memory line",
+            ".wslconfig could not be read as a settings file",
+            remedy="Compare it against the setup instructions and correct it.",
+        )
+    memory = parser.get("wsl2", "memory", fallback=None)
+    if memory is None:
+        return Result(
+            "wslconfig",
+            Status.WARN,
+            ".wslconfig has no memory line under [wsl2]",
             remedy="Add memory=4GB, or memory=8GB if your laptop has 16 GB or more.",
         )
-    return Result("wslconfig", Status.PASS, line)
+    return Result("wslconfig", Status.PASS, f"memory={memory}")
