@@ -174,3 +174,60 @@ def judge_python(code: int, out: str) -> Result:
             remedy="Run uv python install 3.13 and then run this again.",
         )
     return Result("python", Status.PASS, "3.13 available")
+
+
+DOCKER_INSTALL = "Install Docker Desktop from docker.com and start it."
+
+
+def judge_docker_cli(code: int, out: str) -> Result:
+    if code != 0:
+        return Result("docker-cli", Status.FAIL, "not found", remedy=DOCKER_INSTALL)
+    return Result("docker-cli", Status.PASS, _version(out))
+
+
+def judge_docker_daemon(code: int, out: str) -> Result:
+    if code != 0:
+        return Result(
+            "docker-daemon",
+            Status.FAIL,
+            "the Docker daemon is not answering",
+            remedy="Start Docker Desktop and wait until it reports that it is running.",
+        )
+    return Result("docker-daemon", Status.PASS, "up")
+
+
+def judge_docker_run(code: int, out: str, virtualisation: bool | None) -> Result:
+    if code == 0 and "Hello from Docker" in out:
+        return Result("docker-run", Status.PASS, "container ran")
+    if virtualisation is False:
+        return Result(
+            "docker-run",
+            Status.FAIL,
+            "no container could run, and virtualisation is disabled on this machine",
+            remedy=(
+                "Turn on virtualisation in your laptop's firmware settings. "
+                "If it is locked, tell us before 10 September."
+            ),
+        )
+    return Result(
+        "docker-run",
+        Status.FAIL,
+        "no container could run",
+        remedy="Start Docker Desktop, wait until it reports that it is running, then run this again.",
+    )
+
+
+def probe_virtualisation() -> bool | None:
+    if platform.system() != "Windows":
+        return None
+    code, out = run_tool(
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            "(Get-CimInstance Win32_Processor).VirtualizationFirmwareEnabled",
+        ]
+    )
+    if code != 0:
+        return None
+    return "True" in out

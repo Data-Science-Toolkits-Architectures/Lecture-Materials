@@ -99,3 +99,27 @@ def test_uv_missing_gives_the_platform_command(monkeypatch):
     r = doctor.judge_uv(code=127, out="")
     assert r.status is doctor.Status.FAIL
     assert "astral.sh" in r.remedy
+
+
+def test_daemon_down_tells_them_to_start_docker_desktop():
+    r = doctor.judge_docker_daemon(code=1, out="Cannot connect to the Docker daemon")
+    assert r.status is doctor.Status.FAIL
+    assert "Docker Desktop" in r.remedy
+
+
+def test_container_runs():
+    r = doctor.judge_docker_run(code=0, out="Hello from Docker!", virtualisation=True)
+    assert r.status is doctor.Status.PASS
+
+
+def test_container_failure_with_virtualisation_off_names_the_firmware():
+    r = doctor.judge_docker_run(code=1, out="error during connect", virtualisation=False)
+    assert r.status is doctor.Status.FAIL
+    assert "virtualisation" in r.detail.lower()
+    assert "firmware" in r.remedy.lower()
+
+
+def test_container_failure_with_virtualisation_on_does_not_blame_the_firmware():
+    r = doctor.judge_docker_run(code=1, out="error during connect", virtualisation=True)
+    assert r.status is doctor.Status.FAIL
+    assert "firmware" not in r.remedy.lower()
