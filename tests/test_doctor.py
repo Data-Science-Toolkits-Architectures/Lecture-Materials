@@ -140,3 +140,38 @@ def test_docker_cli_present_reports_the_version():
     r = doctor.judge_docker_cli(code=0, out="Docker version 29.1.3, build f52814d")
     assert r.status is doctor.Status.PASS
     assert r.detail == "29.1.3"
+
+
+@pytest.fixture
+def on_windows(monkeypatch):
+    monkeypatch.setattr(doctor.platform, "system", lambda: "Windows")
+
+
+def test_wslconfig_missing_only_warns(on_windows):
+    r = doctor.judge_wslconfig(None)
+    assert r.status is doctor.Status.WARN
+
+
+def test_wslconfig_present_reports_the_memory_line(on_windows):
+    r = doctor.judge_wslconfig("[wsl2]\nmemory=8GB\nprocessors=2\nswap=2GB\n")
+    assert r.status is doctor.Status.PASS
+    assert "memory=8GB" in r.detail
+
+
+def test_wslconfig_without_a_memory_key_warns(on_windows):
+    r = doctor.judge_wslconfig("[wsl2]\nprocessors=2\n")
+    assert r.status is doctor.Status.WARN
+    assert "memory" in r.remedy
+
+
+def test_missing_powershell_seven_fails_with_the_winget_command(on_windows):
+    r = doctor.judge_shell(pwsh_present=False)
+    assert r.status is doctor.Status.FAIL
+    assert "Microsoft.PowerShell" in r.remedy
+
+
+def test_windows_checks_are_not_applicable_elsewhere(monkeypatch):
+    monkeypatch.setattr(doctor.platform, "system", lambda: "Darwin")
+    for r in (doctor.judge_shell(False), doctor.judge_wsl(1, ""), doctor.judge_wslconfig(None)):
+        assert r.status is doctor.Status.PASS
+        assert r.detail == "not applicable"

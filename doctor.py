@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 VERSION = "0.1.0"
 
@@ -231,3 +232,61 @@ def probe_virtualisation() -> bool | None:
     if code != 0:
         return None
     return "True" in out
+
+
+def judge_shell(pwsh_present: bool) -> Result:
+    if platform.system() != "Windows":
+        return Result("shell", Status.PASS, "not applicable")
+    if pwsh_present:
+        return Result("shell", Status.PASS, "PowerShell 7 present")
+    return Result(
+        "shell",
+        Status.FAIL,
+        "PowerShell 7 is not installed",
+        remedy="Run winget install --id Microsoft.PowerShell -e, then use PowerShell 7 rather than Windows PowerShell.",
+    )
+
+
+def probe_pwsh() -> bool:
+    return shutil.which("pwsh") is not None
+
+
+def judge_wsl(code: int, out: str) -> Result:
+    if platform.system() != "Windows":
+        return Result("wsl", Status.PASS, "not applicable")
+    if code != 0:
+        return Result(
+            "wsl",
+            Status.FAIL,
+            "WSL2 is not installed",
+            remedy="Install Docker Desktop and accept the WSL2 component it offers, then restart.",
+        )
+    return Result("wsl", Status.PASS, "present")
+
+
+def probe_wslconfig() -> str | None:
+    if platform.system() != "Windows":
+        return None
+    path = Path.home() / ".wslconfig"
+    return path.read_text(encoding="utf-8") if path.is_file() else None
+
+
+def judge_wslconfig(text: str | None) -> Result:
+    if platform.system() != "Windows":
+        return Result("wslconfig", Status.PASS, "not applicable")
+    if text is None:
+        return Result(
+            "wslconfig",
+            Status.WARN,
+            "no .wslconfig in your user folder",
+            remedy="Create it as described in the setup instructions. It matters from the fourth session.",
+        )
+    line = next((l.strip() for l in text.splitlines() if l.strip().startswith("memory=")), None)
+    if line is None:
+        return Result(
+            "wslconfig",
+            Status.WARN,
+            ".wslconfig has no memory line",
+            remedy="Add memory=4GB, or memory=8GB if your laptop has 16 GB or more.",
+        )
+    return Result("wslconfig", Status.PASS, line)
