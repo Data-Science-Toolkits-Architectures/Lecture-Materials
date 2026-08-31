@@ -1,4 +1,5 @@
 import pytest
+from pathlib import PurePosixPath, PureWindowsPath
 
 import doctor
 
@@ -197,3 +198,37 @@ def test_wslconfig_unreadable_file_is_treated_as_missing(on_windows):
     r = doctor.judge_wslconfig(None)
     assert r.status is doctor.Status.WARN
     assert "readable" in r.detail
+
+
+def test_clean_path_passes():
+    r = doctor.judge_path(PurePosixPath("/Users/ada/dev/Lecture-Materials"), [])
+    assert r.status is doctor.Status.PASS
+
+
+def test_path_with_a_space_fails():
+    r = doctor.judge_path(PurePosixPath("/Users/ada/My Projects/Lecture-Materials"), [])
+    assert r.status is doctor.Status.FAIL
+    assert "space" in r.detail.lower()
+
+
+def test_path_with_an_umlaut_fails():
+    r = doctor.judge_path(PurePosixPath("/Users/muller/dev/Lecture-Materials"), [])
+    assert r.status is doctor.Status.PASS
+    r = doctor.judge_path(PurePosixPath("/Users/müller/dev/Lecture-Materials"), [])
+    assert r.status is doctor.Status.FAIL
+    assert "accented" in r.detail.lower()
+
+
+def test_path_inside_onedrive_fails_and_names_onedrive():
+    root = PureWindowsPath(r"C:\Users\ada\OneDrive - Universitat Luzern")
+    inside = PureWindowsPath(r"C:\Users\ada\OneDrive - Universitat Luzern\dev\Lecture-Materials")
+    r = doctor.judge_path(inside, [root])
+    assert r.status is doctor.Status.FAIL
+    assert "OneDrive" in r.detail
+
+
+def test_path_inside_icloud_fails():
+    root = PurePosixPath("/Users/ada/Library/Mobile Documents")
+    inside = PurePosixPath("/Users/ada/Library/Mobile Documents/dev/Lecture-Materials")
+    r = doctor.judge_path(inside, [root])
+    assert r.status is doctor.Status.FAIL

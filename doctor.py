@@ -304,3 +304,45 @@ def judge_wslconfig(text: str | None) -> Result:
             remedy="Add memory=4GB, or memory=8GB if your laptop has 16 GB or more.",
         )
     return Result("wslconfig", Status.PASS, f"memory={memory}")
+
+
+MOVE_REMEDY = (
+    "Move the folder to dev inside your user folder, then clone it again there. "
+    "Run mkdir ~/dev and cd ~/dev first."
+)
+
+
+def judge_path(path: Path, cloud_roots: list[Path]) -> Result:
+    text = str(path)
+    for root in cloud_roots:
+        if text.startswith(str(root)):
+            name = "OneDrive" if "OneDrive" in str(root) else "iCloud Drive"
+            return Result(
+                "path",
+                Status.FAIL,
+                f"the folder is inside {name}, which will corrupt it",
+                remedy=MOVE_REMEDY,
+            )
+    if " " in text:
+        return Result("path", Status.FAIL, "the path contains a space", remedy=MOVE_REMEDY)
+    if not text.isascii():
+        return Result(
+            "path",
+            Status.FAIL,
+            "the path contains accented characters",
+            remedy=MOVE_REMEDY + " Tell us if your user folder name is the problem.",
+        )
+    return Result("path", Status.PASS, f"{text} clean")
+
+
+def probe_cloud_roots() -> list[Path]:
+    roots: list[Path] = []
+    for var in ("OneDrive", "OneDriveCommercial", "OneDriveConsumer"):
+        value = os.environ.get(var)
+        if value:
+            roots.append(Path(value))
+    home = Path.home()
+    for candidate in (home / "Library" / "Mobile Documents", home / "Library" / "CloudStorage"):
+        if candidate.is_dir():
+            roots.append(candidate)
+    return roots
