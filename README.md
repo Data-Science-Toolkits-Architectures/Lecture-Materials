@@ -14,8 +14,11 @@ The command checks your machine and prints a result for every item. You send us 
 
 ### Repository Structure
 The repository is organized as follows:
-- `Lecture Notebooks`: Contains Jupyter notebooks for each lecture, including code examples and optional exercises.
-- `Project Sample Code`: Contains sample code for the course project. Additional parts will be provided throughout the course.
+- `notebooks`: Jupyter notebooks for each lecture, with code examples and optional exercises.
+- `src`: sample code for the course project. More parts arrive through the semester.
+- `data`: the dataset the project trains on.
+
+Folder and file names carry no spaces and no capital letters. A space in a path breaks commands that are not carefully quoted, and it breaks them differently on Windows and on macOS. Keep to the same convention in your own repository.
 
 ### Accessing the Materials
 The materials for each lecture will be made available at __the latest before the lecture starts__. Please make sure to pull the latest changes from the repository before each lecture or check the repository for updates.
