@@ -214,7 +214,7 @@ def test_path_with_a_space_fails():
 def test_path_with_an_umlaut_fails():
     r = doctor.judge_path(PurePosixPath("/Users/muller/dev/Lecture-Materials"), [])
     assert r.status is doctor.Status.PASS
-    r = doctor.judge_path(PurePosixPath("/Users/müller/dev/Lecture-Materials"), [])
+    r = doctor.judge_path(PurePosixPath("/Users/m\u00fcller/dev/Lecture-Materials"), [])
     assert r.status is doctor.Status.FAIL
     assert "accented" in r.detail.lower()
 
@@ -232,3 +232,26 @@ def test_path_inside_icloud_fails():
     inside = PurePosixPath("/Users/ada/Library/Mobile Documents/dev/Lecture-Materials")
     r = doctor.judge_path(inside, [root])
     assert r.status is doctor.Status.FAIL
+
+
+def test_a_sibling_folder_sharing_a_name_prefix_is_not_flagged():
+    root = PureWindowsPath(r"C:\Users\ada\OneDriveLuzern")
+    outside = PureWindowsPath(r"C:\Users\ada\OneDriveLuzernArchive\dev\repo")
+    assert doctor.judge_path(outside, [root]).status is doctor.Status.PASS
+
+
+def test_a_windows_path_differing_only_in_case_is_still_flagged():
+    root = PureWindowsPath(r"C:\Users\ada\OneDrive")
+    inside = PureWindowsPath(r"c:\users\ada\onedrive\dev\repo")
+    assert doctor.judge_path(inside, [root]).status is doctor.Status.FAIL
+
+
+def test_cloud_roots_survives_a_home_directory_that_cannot_be_resolved(monkeypatch):
+    def boom():
+        raise RuntimeError("no home")
+
+    monkeypatch.setattr(doctor.Path, "home", staticmethod(boom))
+    monkeypatch.delenv("OneDrive", raising=False)
+    monkeypatch.delenv("OneDriveCommercial", raising=False)
+    monkeypatch.delenv("OneDriveConsumer", raising=False)
+    assert doctor.probe_cloud_roots() == []

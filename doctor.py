@@ -315,7 +315,11 @@ MOVE_REMEDY = (
 def judge_path(path: Path, cloud_roots: list[Path]) -> Result:
     text = str(path)
     for root in cloud_roots:
-        if text.startswith(str(root)):
+        try:
+            inside = path.is_relative_to(root)
+        except (TypeError, ValueError):
+            inside = False
+        if inside:
             name = "OneDrive" if "OneDrive" in str(root) else "iCloud Drive"
             return Result(
                 "path",
@@ -341,8 +345,14 @@ def probe_cloud_roots() -> list[Path]:
         value = os.environ.get(var)
         if value:
             roots.append(Path(value))
-    home = Path.home()
+    try:
+        home = Path.home()
+    except RuntimeError:
+        return roots
     for candidate in (home / "Library" / "Mobile Documents", home / "Library" / "CloudStorage"):
-        if candidate.is_dir():
-            roots.append(candidate)
+        try:
+            if candidate.is_dir():
+                roots.append(candidate)
+        except OSError:
+            continue
     return roots
