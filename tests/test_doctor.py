@@ -79,3 +79,23 @@ def test_python_fails_when_uv_cannot_provide_313():
     r = doctor.judge_python(code=1, out="no interpreter found")
     assert r.status is doctor.Status.FAIL
     assert "uv python install 3.13" in r.remedy
+
+
+def test_hint_does_not_offer_a_macos_command_on_linux(monkeypatch):
+    monkeypatch.setattr(doctor.platform, "system", lambda: "Linux")
+    r = doctor.judge_git(code=127, out="")
+    assert "xcode-select" not in r.remedy
+    assert r.remedy
+
+
+def test_run_tool_reports_127_when_the_executable_is_missing():
+    code, out = doctor.run_tool(["definitely-not-a-real-command-9z8y7x"])
+    assert code == 127
+    assert out == ""
+
+
+def test_uv_missing_gives_the_platform_command(monkeypatch):
+    monkeypatch.setattr(doctor.platform, "system", lambda: "Darwin")
+    r = doctor.judge_uv(code=127, out="")
+    assert r.status is doctor.Status.FAIL
+    assert "astral.sh" in r.remedy

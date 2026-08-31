@@ -119,7 +119,10 @@ INSTALL_HINTS = {
 
 
 def _hint(tool: str) -> str:
-    return INSTALL_HINTS[tool].get(platform.system(), INSTALL_HINTS[tool]["Darwin"])
+    system = platform.system()
+    if system in INSTALL_HINTS[tool]:
+        return INSTALL_HINTS[tool][system]
+    return f"Install {tool}. This course supports macOS and Windows only."
 
 
 def run_tool(argv: list[str]) -> tuple[int, str]:
