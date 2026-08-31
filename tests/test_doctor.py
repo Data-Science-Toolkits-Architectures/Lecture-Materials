@@ -123,3 +123,20 @@ def test_container_failure_with_virtualisation_on_does_not_blame_the_firmware():
     r = doctor.judge_docker_run(code=1, out="error during connect", virtualisation=True)
     assert r.status is doctor.Status.FAIL
     assert "firmware" not in r.remedy.lower()
+
+
+def test_container_run_passes_on_exit_code_alone_whatever_docker_prints():
+    r = doctor.judge_docker_run(code=0, out="Hallo von Docker!", virtualisation=None)
+    assert r.status is doctor.Status.PASS
+
+
+def test_docker_cli_missing_tells_them_to_install_docker_desktop():
+    r = doctor.judge_docker_cli(code=127, out="")
+    assert r.status is doctor.Status.FAIL
+    assert "Docker Desktop" in r.remedy
+
+
+def test_docker_cli_present_reports_the_version():
+    r = doctor.judge_docker_cli(code=0, out="Docker version 29.1.3, build f52814d")
+    assert r.status is doctor.Status.PASS
+    assert r.detail == "29.1.3"

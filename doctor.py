@@ -197,7 +197,7 @@ def judge_docker_daemon(code: int, out: str) -> Result:
 
 
 def judge_docker_run(code: int, out: str, virtualisation: bool | None) -> Result:
-    if code == 0 and "Hello from Docker" in out:
+    if code == 0:
         return Result("docker-run", Status.PASS, "container ran")
     if virtualisation is False:
         return Result(
