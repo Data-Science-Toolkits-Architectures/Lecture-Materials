@@ -355,3 +355,58 @@ def test_collect_survives_a_git_identity_lookup_that_raises(monkeypatch):
     identity = next(r for r in results if r.id == "git-identity")
     assert identity.status is doctor.Status.FAIL
     assert identity.remedy
+
+
+def test_docker_run_failure_carries_the_error_text():
+    r = doctor.judge_docker_run(code=1, out="Unable to find image 'hello-world' locally", virtualisation=None)
+    assert r.status is doctor.Status.FAIL
+    assert "Unable to find image" in r.detail
+
+
+def test_docker_run_failure_with_a_running_daemon_mentions_the_network():
+    r = doctor.judge_docker_run(code=1, out="error pulling image", virtualisation=None)
+    assert "network" in r.remedy.lower()
+
+
+def test_firmware_branch_sends_them_to_task_manager_before_the_firmware():
+    r = doctor.judge_docker_run(code=1, out="boom", virtualisation=False)
+    assert "Task Manager" in r.remedy
+
+
+def test_guarded_carries_the_exception_message():
+    def boom():
+        raise RuntimeError("a very specific problem")
+
+    r = doctor.guarded("path", boom)
+    assert "a very specific problem" in r.detail
+
+
+def test_path_failure_shows_the_offending_path():
+    from pathlib import PureWindowsPath
+
+    root = PureWindowsPath(r"C:\\Users\\ada\\OneDrive")
+    inside = PureWindowsPath(r"C:\\Users\\ada\\OneDrive\\dev\\repo")
+    r = doctor.judge_path(inside, [root])
+    assert "OneDrive" in r.detail and "repo" in r.detail
+
+
+def test_a_user_folder_with_a_space_is_told_to_contact_us():
+    from pathlib import PureWindowsPath
+
+    r = doctor.judge_path(PureWindowsPath(r"C:\\Users\\Anna Maria\\dev\\repo"), [])
+    assert r.status is doctor.Status.FAIL
+    assert "user folder" in r.remedy
+
+
+def test_wslconfig_survives_a_byte_order_mark(on_windows):
+    r = doctor.judge_wslconfig("\ufeff[wsl2]\nmemory=8GB\n")
+    assert r.status is doctor.Status.PASS
+
+
+def test_results_stream_as_they_are_produced(monkeypatch):
+    monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
+    monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
+    seen = []
+    results, _ = doctor.collect_stage_0(on_result=seen.append)
+    assert len(seen) == len(doctor.CHECK_ORDER)
+    assert [r.id for r in seen] == [r.id for r in results]

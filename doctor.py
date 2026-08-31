@@ -132,7 +132,9 @@ def _hint(tool: str) -> str:
 
 def run_tool(argv: list[str]) -> tuple[int, str]:
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+        proc = subprocess.run(
+            argv, capture_output=True, text=True, errors="replace", timeout=120
+        )
     except FileNotFoundError:
         return 127, ""
     except subprocess.TimeoutExpired:
@@ -204,22 +206,34 @@ def judge_docker_daemon(code: int, out: str) -> Result:
 def judge_docker_run(code: int, out: str, virtualisation: bool | None) -> Result:
     if code == 0:
         return Result("docker-run", Status.PASS, "container ran")
+    tail = " ".join(out.split())[:120]
     if virtualisation is False:
         return Result(
             "docker-run",
             Status.FAIL,
-            "no container could run, and virtualisation is disabled on this machine",
+            f"no container could run, and this machine reports virtualisation as disabled. {tail}",
             remedy=(
-                "Turn on virtualisation in your laptop's firmware settings. "
-                "If it is locked, tell us before 10 September."
+                "Open Task Manager, choose Performance, then CPU, and look at Virtualisation. "
+                "If it says Disabled, turn it on in your laptop's firmware settings. "
+                "If it says Enabled, send us this report."
             ),
         )
     return Result(
         "docker-run",
         Status.FAIL,
-        "no container could run",
-        remedy="Start Docker Desktop, wait until it reports that it is running, then run this again.",
+        f"no container could run. {tail}",
+        remedy=(
+            "If Docker Desktop is not running, start it and wait until it reports that it is. "
+            "If it is already running, the download was probably blocked by your network, so "
+            "send us this report."
+        ),
     )
+
+
+def _docker_run_check() -> Result:
+    code, out = run_tool(["docker", "run", "--rm", "hello-world"])
+    virtualisation = probe_virtualisation() if code != 0 else None
+    return judge_docker_run(code, out, virtualisation)
 
 
 def probe_virtualisation() -> bool | None:
@@ -273,7 +287,7 @@ def probe_wslconfig() -> str | None:
         return None
     path = Path.home() / ".wslconfig"
     try:
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError):
         return None
 
@@ -290,7 +304,7 @@ def judge_wslconfig(text: str | None) -> Result:
         )
     parser = configparser.ConfigParser()
     try:
-        parser.read_string(text)
+        parser.read_string(text.lstrip("\ufeff"))
     except configparser.Error:
         return Result(
             "wslconfig",
@@ -327,16 +341,21 @@ def judge_path(path: Path, cloud_roots: list[Path]) -> Result:
             return Result(
                 "path",
                 Status.FAIL,
-                f"the folder is inside {name}, which will corrupt it",
+                f"the folder is inside {name}, which will corrupt it: {text}",
                 remedy=MOVE_REMEDY,
             )
     if " " in text:
-        return Result("path", Status.FAIL, "the path contains a space", remedy=MOVE_REMEDY)
+        return Result(
+            "path",
+            Status.FAIL,
+            f"the path contains a space: {text}",
+            remedy=MOVE_REMEDY + " Tell us if your user folder name is the problem.",
+        )
     if not text.isascii():
         return Result(
             "path",
             Status.FAIL,
-            "the path contains accented characters",
+            f"the path contains accented characters: {text}",
             remedy=MOVE_REMEDY + " Tell us if your user folder name is the problem.",
         )
     return Result("path", Status.PASS, "clean")
@@ -364,12 +383,6 @@ def probe_cloud_roots() -> list[Path]:
 WIDTH = 79
 ALLOWED_FACTS = ("os", "arch")
 NETWORK_HOSTS = ("github.com", "pypi.org")
-
-CHECK_ORDER = [
-    "shell", "memory", "disk", "git", "git-identity", "uv", "python",
-    "docker-cli", "docker-daemon", "docker-run", "wsl", "wslconfig",
-    "path", "network",
-]
 
 
 def render_report(results: list[Result], facts: dict[str, str]) -> str:
@@ -419,7 +432,7 @@ def guarded(check_id: str, fn, *args) -> Result:
         return Result(
             check_id,
             Status.FAIL,
-            f"this check could not run: {type(exc).__name__}",
+            f"this check could not run: {type(exc).__name__}: {str(exc)[:120]}",
             remedy="Send us this report. This is our problem to fix, not yours.",
         )
 
@@ -441,41 +454,50 @@ def _git_identity() -> tuple[str, str]:
     )
 
 
-def collect_stage_0() -> tuple[list[Result], dict[str, str]]:
+def _facts() -> dict[str, str]:
     try:
         machine = probe_machine()
-        facts = {
-            "os": f"{machine['os']} {machine['release']}",
-            "arch": str(machine["arch"]),
-            "memory": f"{_gb(int(machine['memory_bytes']))} GB",
-            "disk": f"{_gb(int(machine['disk_free_bytes']))} GB free",
-        }
-    except Exception:
-        facts = {}
+    except Exception:  # noqa: BLE001
+        return {}
+    system = str(machine["os"])
+    if system == "Darwin":
+        release = platform.mac_ver()[0] or str(machine["release"])
+        system = "macOS"
+    else:
+        release = str(machine["release"])
+    return {"os": f"{system} {release}", "arch": str(machine["arch"])}
 
-    results = [
-        guarded("shell", lambda: judge_shell(probe_pwsh())),
-        guarded("memory", lambda: judge_memory(_memory_bytes())),
-        guarded("disk", lambda: judge_disk(_disk_free_bytes())),
-        guarded("git", lambda: judge_git(*run_tool(["git", "--version"]))),
-        guarded("git-identity", lambda: judge_git_identity(*_git_identity())),
-        guarded("uv", lambda: judge_uv(*run_tool(["uv", "--version"]))),
-        guarded("python", lambda: judge_python(*run_tool(["uv", "python", "find", "3.13"]))),
-        guarded("docker-cli", lambda: judge_docker_cli(*run_tool(["docker", "--version"]))),
-        guarded("docker-daemon", lambda: judge_docker_daemon(*run_tool(["docker", "info"]))),
-        guarded(
-            "docker-run",
-            lambda: judge_docker_run(
-                *run_tool(["docker", "run", "--rm", "hello-world"]), probe_virtualisation()
-            ),
-        ),
-        guarded("wsl", lambda: judge_wsl(*run_tool(["wsl", "--status"]))),
-        guarded("wslconfig", lambda: judge_wslconfig(probe_wslconfig())),
-        guarded("path", lambda: judge_path(Path.cwd().resolve(), probe_cloud_roots())),
-        guarded("network", lambda: judge_network({h: probe_network(h) for h in NETWORK_HOSTS})),
+
+def _check_list() -> list[tuple[str, object]]:
+    return [
+        ("shell", lambda: judge_shell(probe_pwsh())),
+        ("memory", lambda: judge_memory(_memory_bytes())),
+        ("disk", lambda: judge_disk(_disk_free_bytes())),
+        ("git", lambda: judge_git(*run_tool(["git", "--version"]))),
+        ("git-identity", lambda: judge_git_identity(*_git_identity())),
+        ("uv", lambda: judge_uv(*run_tool(["uv", "--version"]))),
+        ("python", lambda: judge_python(*run_tool(["uv", "python", "find", "3.13"]))),
+        ("docker-cli", lambda: judge_docker_cli(*run_tool(["docker", "--version"]))),
+        ("docker-daemon", lambda: judge_docker_daemon(*run_tool(["docker", "info"]))),
+        ("docker-run", _docker_run_check),
+        ("wsl", lambda: judge_wsl(*run_tool(["wsl", "--status"]))),
+        ("wslconfig", lambda: judge_wslconfig(probe_wslconfig())),
+        ("path", lambda: judge_path(Path.cwd().resolve(), probe_cloud_roots())),
+        ("network", lambda: judge_network({h: probe_network(h) for h in NETWORK_HOSTS})),
     ]
-    order = {name: i for i, name in enumerate(CHECK_ORDER)}
-    results.sort(key=lambda r: order[r.id])
+
+
+CHECK_ORDER = tuple(check_id for check_id, _ in _check_list())
+
+
+def collect_stage_0(on_result=None) -> tuple[list[Result], dict[str, str]]:
+    facts = _facts()
+    results: list[Result] = []
+    for check_id, fn in _check_list():
+        result = guarded(check_id, fn)
+        if on_result is not None:
+            on_result(result)
+        results.append(result)
     return results, facts
 
 
@@ -494,13 +516,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.version:
         print(VERSION)
         return 0
-    results, facts = collect_stage_0()
+    if args.stage != 0:
+        parser.error("only stage 0 exists so far")
+    if args.only is not None and args.only not in CHECK_ORDER:
+        parser.error(f"unknown check {args.only!r}, expected one of {', '.join(CHECK_ORDER)}")
+
+    def show(result: Result) -> None:
+        if args.only and result.id != args.only:
+            return
+        print(f"{result.status.value:<5} {result.id:<14} {result.detail}")
+        if result.remedy:
+            print(f"      {result.remedy}")
+
+    results, facts = collect_stage_0(on_result=show)
     if args.only:
         results = [r for r in results if r.id == args.only]
-    for r in results:
-        print(f"{r.status.value:<5} {r.id:<14} {r.detail}")
-        if r.remedy:
-            print(f"      {r.remedy}")
     print()
     print(render_report(results, facts), end="")
     print(closing_line(results))
