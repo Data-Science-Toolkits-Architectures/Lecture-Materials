@@ -9,7 +9,9 @@ from __future__ import annotations
 import enum
 import os
 import platform
+import re
 import shutil
+import subprocess
 from dataclasses import dataclass
 
 VERSION = "0.1.0"
@@ -102,3 +104,70 @@ def judge_disk(disk_free_bytes: int) -> Result:
         f"{found} GB free, {DISK_FLOOR_GB} GB needed",
         remedy=f"Free up {DISK_FLOOR_GB - found} GB and run this again.",
     )
+
+
+INSTALL_HINTS = {
+    "git": {
+        "Windows": "winget install --id Git.Git -e",
+        "Darwin": "xcode-select --install",
+    },
+    "uv": {
+        "Windows": "winget install --id astral-sh.uv -e",
+        "Darwin": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+    },
+}
+
+
+def _hint(tool: str) -> str:
+    return INSTALL_HINTS[tool].get(platform.system(), INSTALL_HINTS[tool]["Darwin"])
+
+
+def run_tool(argv: list[str]) -> tuple[int, str]:
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+    except FileNotFoundError:
+        return 127, ""
+    except subprocess.TimeoutExpired:
+        return 124, ""
+    return proc.returncode, (proc.stdout + proc.stderr).strip()
+
+
+def _version(out: str) -> str:
+    match = re.search(r"\d+\.\d+(\.\d+)?", out)
+    return match.group(0) if match else "unknown"
+
+
+def judge_git(code: int, out: str) -> Result:
+    if code != 0:
+        return Result("git", Status.FAIL, "not found", remedy=_hint("git"))
+    return Result("git", Status.PASS, _version(out))
+
+
+def judge_git_identity(name: str, email: str) -> Result:
+    missing = [k for k, v in (("user.name", name), ("user.email", email)) if not v.strip()]
+    if not missing:
+        return Result("git-identity", Status.PASS, email.strip())
+    commands = " and ".join(f'git config --global {k} "..."' for k in missing)
+    return Result(
+        "git-identity",
+        Status.FAIL,
+        f"{', '.join(missing)} not set",
+        remedy=f"Run {commands} with your own details.",
+    )
+
+
+def judge_uv(code: int, out: str) -> Result:
+    if code != 0:
+        return Result("uv", Status.FAIL, "not found", remedy=_hint("uv"))
+    return Result("uv", Status.PASS, _version(out))
+
+
+def judge_python(code: int, out: str) -> Result:
+    if code != 0:
+        return Result(
+            "python",
+            Status.FAIL,
+            "uv cannot provide CPython 3.13",
+            remedy="Run uv python install 3.13 and then run this again.",
+        )
+    return Result("python", Status.PASS, "3.13 available")
