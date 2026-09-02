@@ -1,0 +1,19 @@
+# Goes in .github/workflows/checks.yml of a team repository.
+# It is not in .github/ here, because it would then run on every push to the
+# materials repository.
+name: checks
+
+on: pull_request
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run ty check .
+      - run: uv run pytest --cov=rules
+      - run: uv run doctor.py
