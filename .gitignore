@@ -26,3 +26,5 @@ ENV/
 *.log
 Thumbs.db
 .superpowers/
+
+build/snippets/
