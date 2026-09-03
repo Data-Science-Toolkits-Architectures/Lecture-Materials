@@ -86,7 +86,13 @@ def test_hint_does_not_offer_a_macos_command_on_linux(monkeypatch):
     monkeypatch.setattr(doctor.platform, "system", lambda: "Linux")
     r = doctor.judge_git(code=127, out="")
     assert "xcode-select" not in r.remedy
-    assert r.remedy
+    assert "apt" in r.remedy
+
+
+def test_uv_hint_on_linux_is_the_installer_script(monkeypatch):
+    monkeypatch.setattr(doctor.platform, "system", lambda: "Linux")
+    r = doctor.judge_uv(code=127, out="")
+    assert "astral.sh/uv/install.sh" in r.remedy
 
 
 def test_run_tool_reports_127_when_the_executable_is_missing():
@@ -165,10 +171,14 @@ def test_wslconfig_without_a_memory_key_warns(on_windows):
     assert "memory" in r.remedy
 
 
-def test_missing_powershell_seven_fails_with_the_winget_command(on_windows):
+def test_missing_powershell_seven_warns_with_the_winget_command(on_windows):
     r = doctor.judge_shell(pwsh_present=False)
-    assert r.status is doctor.Status.FAIL
+    assert r.status is doctor.Status.WARN
     assert "Microsoft.PowerShell" in r.remedy
+
+
+def test_missing_powershell_seven_does_not_hold_up_the_setup(on_windows):
+    assert doctor.exit_code([doctor.judge_shell(pwsh_present=False)]) == 0
 
 
 def test_windows_checks_are_not_applicable_elsewhere(monkeypatch):

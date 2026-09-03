@@ -115,10 +115,12 @@ INSTALL_HINTS = {
     "git": {
         "Windows": "winget install --id Git.Git -e",
         "Darwin": "xcode-select --install",
+        "Linux": "sudo apt install git, or the same package from your own distribution",
     },
     "uv": {
         "Windows": "winget install --id astral-sh.uv -e",
         "Darwin": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+        "Linux": "curl -LsSf https://astral.sh/uv/install.sh | sh",
     },
 }
 
@@ -127,7 +129,7 @@ def _hint(tool: str) -> str:
     system = platform.system()
     if system in INSTALL_HINTS[tool]:
         return INSTALL_HINTS[tool][system]
-    return f"Install {tool}. This course supports macOS and Windows only."
+    return f"Install {tool}. This course supports Windows, macOS and Linux."
 
 
 def run_tool(argv: list[str]) -> tuple[int, str]:
@@ -259,9 +261,9 @@ def judge_shell(pwsh_present: bool) -> Result:
         return Result("shell", Status.PASS, "PowerShell 7 present")
     return Result(
         "shell",
-        Status.FAIL,
+        Status.WARN,
         "PowerShell 7 is not installed",
-        remedy="Run winget install --id Microsoft.PowerShell -e, then use PowerShell 7 rather than Windows PowerShell.",
+        remedy="Nothing needs it yet. Run winget install --id Microsoft.PowerShell -e when you want it.",
     )
 
 

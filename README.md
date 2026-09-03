@@ -1,10 +1,12 @@
-# Data Science Toolkits & Architectures Course - Materials
-This repository contains the materials (Jupyter Notebooks and sample project code) for the Data Science Toolkits & Architectures course at the University of Lucerne.
+# Data Science Toolkits & Architectures: course materials
 
-### Before the first lecture
-`SETUP.md` in this repository tells you what to install and in what order. Work through it before the first lecture.
+This repository holds the materials for the Data Science Toolkits & Architectures course at the University of Lucerne. That means the notebook for each lecture and the sample code for the course project.
 
-It ends with one command, which you run here:
+## Before the first lecture
+
+Work through [SETUP.md](SETUP.md). It tells you what to install and in what order, and it is the only thing you have to do before we start.
+
+It ends with one command, which you run inside this folder.
 
 ```bash
 uv run doctor.py
@@ -12,28 +14,23 @@ uv run doctor.py
 
 The command checks your machine and prints a result for every item. You send us the result only if something fails. You run the same command at every stage of the course, and it checks more as the project grows.
 
-### Repository Structure
-The repository is organized as follows:
-- `notebooks`: Jupyter notebooks for each lecture, with code examples and optional exercises.
-- `src`: sample code for the course project. More parts arrive through the semester.
-- `data`: the dataset the project trains on.
+## How the materials are released
 
-Folders are lower case and use an underscore rather than a space. Nothing in this repository has a space in its name. A space breaks any command that does not quote the path, and it breaks differently on Windows and on macOS. Keep to the same convention in your own repository.
-
-### Accessing the Materials
-The materials for each lecture will be made available at __the latest before the lecture starts__. Please make sure to pull the latest changes from the repository before each lecture or check the repository for updates.
-
-To release the materials progressively throughout the course, the materials for each lecture are provided in a __separate branch__. You can switch to the branch corresponding to the current lecture to access its materials.
-
-For example, to access the materials for the first lecture, switch to the `lecture-1` branch:
+The material for each lecture lives on its own branch, and a branch appears at the latest before its lecture starts. Pull before every lecture, then switch to the branch for the lecture you are in.
 
 ```bash
+git fetch
 git switch lecture-1
 ```
 
-### Working with the Repository
-We recommend cloning the repository to your local machine and working with the materials there. You can use Git to pull the latest changes before each lecture and easily switch between branches.
+## What a lecture branch holds
 
-However, we recommend that you `do not work directly in this course repository`. Instead, copy the materials you need into your own project repository and do your work there.
+- `notebooks` holds the notebook for the lecture, with the code examples and the optional exercises.
+- `src` holds the sample code for the course project. More parts arrive through the semester.
+- `data` holds the dataset the project trains on.
 
-__Alternatively__, you can work directly with the materials on GitHub by copying or downloading the files for each lecture.
+Folders are lower case and use an underscore rather than a space. Nothing in this repository has a space in its name. A space breaks any command that does not quote the path, and it breaks differently on each of the three systems. Keep to the same convention in your own repository.
+
+## Work in your own repository, not in this one
+
+Clone this repository and pull it before each lecture. Do not do your own work inside it. Copy what you need into your own project repository and work there. This repository moves under you every time we push the next lecture, and anything you leave here will collide with that.
