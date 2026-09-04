@@ -140,3 +140,14 @@ print("it passes")
 # application would pass whether the rule existed or not.
 #
 # </details>
+
+# %%
+# solution-source
+# This cell never reaches the notebook students receive. The build lifts the
+# solution out of it, folds it into the exercise above, and then removes the
+# cell. Keeping it here means a solution is real code that runs, rather than
+# text somebody typed into a markdown cell.
+
+def garden_is_big_enough(garden_m2: float) -> bool:
+    """At least the minimum means at least, so the comparison is inclusive."""
+    return garden_m2 >= MIN_GARDEN_M2
