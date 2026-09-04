@@ -78,3 +78,65 @@ try:
     decide(unanswered)
 except MissingAnswer as stopped:
     print("stopped, rather than scoring it as perfect:", stopped)
+
+# %% [markdown]
+# ## Exercise 1. Make the failing check pass
+#
+# One character in the function below is wrong. The Bureau's rule is that a
+# garden of **at least** fifty square metres is enough, and the third assertion
+# says so. Run the cell, read the failure, then fix it.
+
+# %%
+MIN_GARDEN_M2 = 50.0
+
+
+def garden_is_big_enough(garden_m2: float) -> bool:
+    return garden_m2 > MIN_GARDEN_M2  # TODO one character is wrong
+
+
+assert garden_is_big_enough(50.1)
+assert not garden_is_big_enough(49.9)
+assert garden_is_big_enough(50.0), "a garden of exactly the minimum is big enough"
+print("all three pass")
+
+# %% [markdown]
+# <details>
+#
+# <summary>Show the solution</summary>
+#
+# {{solution:garden-boundary}}
+#
+# The applicant with exactly the required garden is the one the rule was written
+# for, and the one a strict comparison silently refuses. Boundaries are where
+# rules are wrong, which is why the tests you write tonight go there first.
+#
+# </details>
+
+# %% [markdown]
+# ## Exercise 2. Write the missing test
+#
+# The Bureau refuses a unicorn above the second floor when there is no lift,
+# whatever the rest of the application says. No test covers that. Write one.
+#
+# You have `Application`, `decide` and `pytest` already imported above.
+
+# %%
+def test_the_floor_rule_overrides_a_perfect_score():
+    ...  # TODO
+
+
+test_the_floor_rule_overrides_a_perfect_score()
+print("it passes")
+
+# %% [markdown]
+# <details>
+#
+# <summary>Show the solution</summary>
+#
+# {{solution:floor-rule-test}}
+#
+# A policy rule is one the score cannot outvote, so the test has to start from an
+# application that would otherwise be approved. A test that starts from a bad
+# application would pass whether the rule existed or not.
+#
+# </details>
