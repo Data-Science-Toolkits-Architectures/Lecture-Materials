@@ -86,7 +86,13 @@ def test_hint_does_not_offer_a_macos_command_on_linux(monkeypatch):
     monkeypatch.setattr(doctor.platform, "system", lambda: "Linux")
     r = doctor.judge_git(code=127, out="")
     assert "xcode-select" not in r.remedy
-    assert r.remedy
+    assert "apt" in r.remedy
+
+
+def test_uv_hint_on_linux_is_the_installer_script(monkeypatch):
+    monkeypatch.setattr(doctor.platform, "system", lambda: "Linux")
+    r = doctor.judge_uv(code=127, out="")
+    assert "astral.sh/uv/install.sh" in r.remedy
 
 
 def test_run_tool_reports_127_when_the_executable_is_missing():
@@ -165,10 +171,14 @@ def test_wslconfig_without_a_memory_key_warns(on_windows):
     assert "memory" in r.remedy
 
 
-def test_missing_powershell_seven_fails_with_the_winget_command(on_windows):
+def test_missing_powershell_seven_warns_with_the_winget_command(on_windows):
     r = doctor.judge_shell(pwsh_present=False)
-    assert r.status is doctor.Status.FAIL
+    assert r.status is doctor.Status.WARN
     assert "Microsoft.PowerShell" in r.remedy
+
+
+def test_missing_powershell_seven_does_not_hold_up_the_setup(on_windows):
+    assert doctor.exit_code([doctor.judge_shell(pwsh_present=False)]) == 0
 
 
 def test_windows_checks_are_not_applicable_elsewhere(monkeypatch):
@@ -336,7 +346,7 @@ def test_collect_survives_a_probe_that_raises(monkeypatch):
     monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
     monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
     monkeypatch.setattr(doctor, "probe_cloud_roots", boom)
-    results, facts = doctor.collect_stage_0()
+    results, facts = doctor.collect_checks()
     assert isinstance(facts, dict)
     assert len(results) == len(doctor.CHECK_ORDER)
     path_result = next(r for r in results if r.id == "path")
@@ -350,7 +360,7 @@ def test_collect_survives_a_git_identity_lookup_that_raises(monkeypatch):
 
     monkeypatch.setattr(doctor, "run_tool", boom)
     monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
-    results, _ = doctor.collect_stage_0()
+    results, _ = doctor.collect_checks()
     assert len(results) == len(doctor.CHECK_ORDER)
     identity = next(r for r in results if r.id == "git-identity")
     assert identity.status is doctor.Status.FAIL
@@ -407,6 +417,6 @@ def test_results_stream_as_they_are_produced(monkeypatch):
     monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
     monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
     seen = []
-    results, _ = doctor.collect_stage_0(on_result=seen.append)
+    results, _ = doctor.collect_checks(on_result=seen.append)
     assert len(seen) == len(doctor.CHECK_ORDER)
     assert [r.id for r in seen] == [r.id for r in results]

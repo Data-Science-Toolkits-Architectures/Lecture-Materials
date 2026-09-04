@@ -115,10 +115,12 @@ INSTALL_HINTS = {
     "git": {
         "Windows": "winget install --id Git.Git -e",
         "Darwin": "xcode-select --install",
+        "Linux": "sudo apt install git, or the same package from your own distribution",
     },
     "uv": {
         "Windows": "winget install --id astral-sh.uv -e",
         "Darwin": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+        "Linux": "curl -LsSf https://astral.sh/uv/install.sh | sh",
     },
 }
 
@@ -127,7 +129,7 @@ def _hint(tool: str) -> str:
     system = platform.system()
     if system in INSTALL_HINTS[tool]:
         return INSTALL_HINTS[tool][system]
-    return f"Install {tool}. This course supports macOS and Windows only."
+    return f"Install {tool}. This course supports Windows, macOS and Linux."
 
 
 def run_tool(argv: list[str]) -> tuple[int, str]:
@@ -259,9 +261,9 @@ def judge_shell(pwsh_present: bool) -> Result:
         return Result("shell", Status.PASS, "PowerShell 7 present")
     return Result(
         "shell",
-        Status.FAIL,
+        Status.WARN,
         "PowerShell 7 is not installed",
-        remedy="Run winget install --id Microsoft.PowerShell -e, then use PowerShell 7 rather than Windows PowerShell.",
+        remedy="Nothing needs it yet. Run winget install --id Microsoft.PowerShell -e when you want it.",
     )
 
 
@@ -390,7 +392,7 @@ def render_report(results: list[Result], facts: dict[str, str]) -> str:
     pad = (WIDTH - len(head)) // 2
     lines = ["-" * pad + head + "-" * (WIDTH - pad - len(head))]
     stamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    lines.append(f"doctor.py {VERSION}   stage 0   {stamp}")
+    lines.append(f"doctor.py {VERSION}   {stamp}")
     for key in ALLOWED_FACTS:
         if key in facts:
             lines.append(f"{key:<14}{facts[key]}")
@@ -490,7 +492,7 @@ def _check_list() -> list[tuple[str, object]]:
 CHECK_ORDER = tuple(check_id for check_id, _ in _check_list())
 
 
-def collect_stage_0(on_result=None) -> tuple[list[Result], dict[str, str]]:
+def collect_checks(on_result=None) -> tuple[list[Result], dict[str, str]]:
     facts = _facts()
     results: list[Result] = []
     for check_id, fn in _check_list():
@@ -509,15 +511,12 @@ def closing_line(results: list[Result]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check this machine for the course.")
-    parser.add_argument("--stage", type=int, default=0)
     parser.add_argument("--only", default=None, help="show one check by id")
     parser.add_argument("--version", action="store_true")
     args = parser.parse_args(argv)
     if args.version:
         print(VERSION)
         return 0
-    if args.stage != 0:
-        parser.error("only stage 0 exists so far")
     if args.only is not None and args.only not in CHECK_ORDER:
         parser.error(f"unknown check {args.only!r}, expected one of {', '.join(CHECK_ORDER)}")
 
@@ -528,7 +527,7 @@ def main(argv: list[str] | None = None) -> int:
         if result.remedy:
             print(f"      {result.remedy}")
 
-    results, facts = collect_stage_0(on_result=show)
+    results, facts = collect_checks(on_result=show)
     if args.only:
         results = [r for r in results if r.id == args.only]
     print()
