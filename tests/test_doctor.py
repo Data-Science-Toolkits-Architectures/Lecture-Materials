@@ -346,7 +346,7 @@ def test_collect_survives_a_probe_that_raises(monkeypatch):
     monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
     monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
     monkeypatch.setattr(doctor, "probe_cloud_roots", boom)
-    results, facts = doctor.collect_stage_0()
+    results, facts = doctor.collect_checks()
     assert isinstance(facts, dict)
     assert len(results) == len(doctor.CHECK_ORDER)
     path_result = next(r for r in results if r.id == "path")
@@ -360,7 +360,7 @@ def test_collect_survives_a_git_identity_lookup_that_raises(monkeypatch):
 
     monkeypatch.setattr(doctor, "run_tool", boom)
     monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
-    results, _ = doctor.collect_stage_0()
+    results, _ = doctor.collect_checks()
     assert len(results) == len(doctor.CHECK_ORDER)
     identity = next(r for r in results if r.id == "git-identity")
     assert identity.status is doctor.Status.FAIL
@@ -417,6 +417,6 @@ def test_results_stream_as_they_are_produced(monkeypatch):
     monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
     monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
     seen = []
-    results, _ = doctor.collect_stage_0(on_result=seen.append)
+    results, _ = doctor.collect_checks(on_result=seen.append)
     assert len(seen) == len(doctor.CHECK_ORDER)
     assert [r.id for r in seen] == [r.id for r in results]

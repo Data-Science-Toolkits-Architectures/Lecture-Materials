@@ -12,7 +12,7 @@ It ends with one command, which you run inside this folder.
 uv run doctor.py
 ```
 
-The command checks your machine and prints a result for every item. You send us the result only if something fails. You run the same command at every stage of the course, and it checks more as the project grows.
+The command checks your machine and prints a result for every item. You send us the result only if something fails.
 
 ## How the materials are released
 

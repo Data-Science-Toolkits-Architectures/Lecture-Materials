@@ -167,7 +167,7 @@ uv run doctor.py
 
 The first fetches the course repository. The second moves into it. The third checks your machine and prints a result for every item.
 
-You will run `uv run doctor.py` again at every stage of the course. It is the same command each time and it checks more as the project grows.
+The check looks at your machine, not at your project. Once it passes you are set up for the whole course and you do not need to run it again.
 
 If Git asks who you are, run these two commands with your own details and then run the check again.
 
