@@ -7,5 +7,5 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY rules.py ./
-CMD ["uv", "run", "python", "-c", "import rules; print(rules.decide)"]
+COPY src/lecture_02/rules.py ./src/lecture_02/
+CMD ["uv", "run", "python", "-c", "from src.lecture_02 import rules; print(rules.decide)"]

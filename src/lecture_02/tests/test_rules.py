@@ -1,6 +1,12 @@
 import pytest
 
-from rules import MINIMUM_AGE, REFUSE_AT_OR_ABOVE, Application, MissingValue, decide
+from src.lecture_02.rules import (
+    MINIMUM_AGE,
+    REFUSE_AT_OR_ABOVE,
+    Application,
+    MissingValue,
+    decide,
+)
 
 SAFE = 0.05
 

@@ -1,7 +1,8 @@
-# The decision rules, as a worked example
+# Lecture 2, the code and the notebook
 
-The example L2 teaches on. It is your own system, the credit decision, rather
-than an invented one, so nothing has to be translated before you can use it.
+Everything for lecture 2 in one folder. The notebook, the code it imports, and
+the tests. It is your own system, the credit decision, rather than an invented
+one, so nothing has to be translated before you can use it.
 
 **Every number here is an example, not a recommendation.** Which threshold you
 use, which policy rules you add, which of the two mistakes you would rather
@@ -11,6 +12,7 @@ your judgement goes are marked.
 
 | Path | What it is |
 |---|---|
+| `02_environments_containers_tests.ipynb` | the notebook for the session, with the exercises and their folded solutions |
 | `generated/decide_as_generated.py` | what a coding assistant produced from one sentence, kept unedited. Every code quality example in L2 is read off this file |
 | `rules_restructured.py` | the same decision after the three code quality buckets. Separated, readable, and still wrong |
 | `rules.py` | the same again after the failing test is narrowed and fixed |
@@ -42,11 +44,13 @@ sitting exactly on the threshold is approved.
 
 ## Running it
 
+Run everything from the repository root.
+
 ```bash
 uv sync
 uv run pytest
-uv run pytest --cov=rules
+uv run pytest --cov=src.lecture_02.rules
 uv run ruff check .
 uv run ty check .
-docker build -t rules . && docker run rules
+docker build -f src/lecture_02/Dockerfile -t rules . && docker run rules
 ```
