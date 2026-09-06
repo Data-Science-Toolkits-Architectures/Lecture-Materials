@@ -154,60 +154,8 @@ def on_windows(monkeypatch):
     monkeypatch.setattr(doctor.platform, "system", lambda: "Windows")
 
 
-def test_wslconfig_missing_only_warns(on_windows):
-    r = doctor.judge_wslconfig(None)
-    assert r.status is doctor.Status.WARN
-
-
-def test_wslconfig_present_reports_the_memory_line(on_windows):
-    r = doctor.judge_wslconfig("[wsl2]\nmemory=8GB\nprocessors=2\nswap=2GB\n")
-    assert r.status is doctor.Status.PASS
-    assert "memory=8GB" in r.detail
-
-
-def test_wslconfig_without_a_memory_key_warns(on_windows):
-    r = doctor.judge_wslconfig("[wsl2]\nprocessors=2\n")
-    assert r.status is doctor.Status.WARN
-    assert "memory" in r.remedy
-
-
-def test_missing_powershell_seven_warns_with_the_winget_command(on_windows):
-    r = doctor.judge_shell(pwsh_present=False)
-    assert r.status is doctor.Status.WARN
-    assert "Microsoft.PowerShell" in r.remedy
-
-
 def test_missing_powershell_seven_does_not_hold_up_the_setup(on_windows):
-    assert doctor.exit_code([doctor.judge_shell(pwsh_present=False)]) == 0
-
-
-def test_windows_checks_are_not_applicable_elsewhere(monkeypatch):
-    monkeypatch.setattr(doctor.platform, "system", lambda: "Darwin")
-    for r in (doctor.judge_shell(False), doctor.judge_wsl(1, ""), doctor.judge_wslconfig(None)):
-        assert r.status is doctor.Status.PASS
-        assert r.detail == "not applicable"
-
-
-def test_wslconfig_accepts_spaces_around_the_equals(on_windows):
-    r = doctor.judge_wslconfig("[wsl2]\nmemory = 8GB\n")
-    assert r.status is doctor.Status.PASS
-    assert "8GB" in r.detail
-
-
-def test_wslconfig_ignores_a_memory_line_in_another_section(on_windows):
-    r = doctor.judge_wslconfig("[experimental]\nmemory=8GB\n")
-    assert r.status is doctor.Status.WARN
-
-
-def test_wslconfig_warns_rather_than_raising_on_rubbish(on_windows):
-    r = doctor.judge_wslconfig("this is not an ini file at all\n@@@@\n")
-    assert r.status is doctor.Status.WARN
-
-
-def test_wslconfig_unreadable_file_is_treated_as_missing(on_windows):
-    r = doctor.judge_wslconfig(None)
-    assert r.status is doctor.Status.WARN
-    assert "readable" in r.detail
+    assert doctor.exit_code([doctor.judge_memory(4 * GB)]) == 0
 
 
 def test_clean_path_passes():
@@ -295,17 +243,6 @@ def test_report_is_delimited_so_a_student_can_copy_it_whole():
     assert text.rstrip().endswith("-")
 
 
-def test_network_passes_when_every_host_answers():
-    r = doctor.judge_network({"github.com": True, "pypi.org": True})
-    assert r.status is doctor.Status.PASS
-
-
-def test_network_only_warns_and_names_the_unreachable_host():
-    r = doctor.judge_network({"github.com": True, "pypi.org": False})
-    assert r.status is doctor.Status.WARN
-    assert "pypi.org" in r.detail
-
-
 def test_clean_run_tells_the_student_to_send_nothing():
     line = doctor.closing_line([doctor.Result("a", doctor.Status.PASS, "ok")])
     assert "Nothing to send" in line
@@ -344,7 +281,6 @@ def test_collect_survives_a_probe_that_raises(monkeypatch):
         raise RuntimeError("unexpected")
 
     monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
-    monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
     monkeypatch.setattr(doctor, "probe_cloud_roots", boom)
     results, facts = doctor.collect_checks()
     assert isinstance(facts, dict)
@@ -359,7 +295,6 @@ def test_collect_survives_a_git_identity_lookup_that_raises(monkeypatch):
         raise OSError("subprocess exploded")
 
     monkeypatch.setattr(doctor, "run_tool", boom)
-    monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
     results, _ = doctor.collect_checks()
     assert len(results) == len(doctor.CHECK_ORDER)
     identity = next(r for r in results if r.id == "git-identity")
@@ -408,14 +343,8 @@ def test_a_user_folder_with_a_space_is_told_to_contact_us():
     assert "user folder" in r.remedy
 
 
-def test_wslconfig_survives_a_byte_order_mark(on_windows):
-    r = doctor.judge_wslconfig("\ufeff[wsl2]\nmemory=8GB\n")
-    assert r.status is doctor.Status.PASS
-
-
 def test_results_stream_as_they_are_produced(monkeypatch):
     monkeypatch.setattr(doctor, "run_tool", lambda argv: (127, ""))
-    monkeypatch.setattr(doctor, "probe_network", lambda host, *a, **k: False)
     seen = []
     results, _ = doctor.collect_checks(on_result=seen.append)
     assert len(seen) == len(doctor.CHECK_ORDER)

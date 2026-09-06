@@ -87,26 +87,9 @@ Close the window and open a new one when this finishes.
 
 **3. Docker Desktop:** Download it from [docker.com](https://www.docker.com/products/docker-desktop/) and run the installer. It asks to install a component called [WSL2](https://learn.microsoft.com/windows/wsl/). Accept it. Restart your laptop when it asks. Then start Docker Desktop and wait until it reports that it is running. Leave it running.
 
-**4. Give WSL2 a fixed size:** Docker runs inside a small Linux machine, and left alone it takes as much memory as it likes. We set it once, so that every machine in the course behaves the same way and Windows keeps enough for itself.
+**4. PyCharm:** Download it from [jetbrains.com/pycharm](https://www.jetbrains.com/pycharm/download/). Install it and start it once. If your Student Pack has been approved, sign in with your GitHub account to unlock the full edition. If it has not been approved yet, the free edition is enough for now.
 
-Create a file called [`.wslconfig`](https://learn.microsoft.com/windows/wsl/wsl-config#wslconfig) in your user folder, which is the one named after you inside `C:\Users`. Put exactly this in it.
-
-```
-[wsl2]
-memory=4GB
-processors=2
-swap=2GB
-```
-
-If your laptop has 16 GB of memory or more, write `memory=8GB` instead.
-
-The file must be named `.wslconfig` with the dot and with no `.txt` on the end. Notepad adds `.txt` unless you choose All Files in the save dialogue. After saving it, quit Docker Desktop and start it again.
-
-**5. PyCharm:** Download it from [jetbrains.com/pycharm](https://www.jetbrains.com/pycharm/download/). Install it and start it once. If your Student Pack has been approved, sign in with your GitHub account to unlock the full edition. If it has not been approved yet, the free edition is enough for now.
-
-**6. Warp:** Download it from [warp.dev](https://www.warp.dev/download) and run the installer. Start it. You do not need an account. From here on, when these instructions say to open a terminal, open Warp.
-
-The check at the end may warn that [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) is missing. That is a warning and not a failure, and nothing in this document needs it. It starts to matter later in the course, because the PowerShell that ships with Windows treats `curl` as a name for something else and does not write UTF-8 by default. Install it whenever you like with `winget install --id Microsoft.PowerShell -e`.
+**5. Warp:** Download it from [warp.dev](https://www.warp.dev/download) and run the installer. Start it. You do not need an account. From here on, when these instructions say to open a terminal, open Warp.
 
 Now go to [where your work lives](#where-your-work-lives).
 
@@ -146,7 +129,7 @@ Keep everything for this course in a folder called `dev`, directly inside your u
 
 Those services copy files to the cloud while they are being written. Python environments and containers write thousands of small files, and the two fight each other in ways that produce error messages nobody can read. Windows often puts Documents inside OneDrive without telling you, and macOS does the same with Desktop and Documents.
 
-The path must also have no spaces in it and no accented characters. Windows names your user folder after you, so if your own name contains a space or an accent, that folder cannot be fixed by moving anything. Tell us instead. If yours contains an umlaut, tell us as well. Some tools handle that badly and we would rather know now.
+The path must also have no spaces in it and no accented characters. Windows names your user folder after you, so if your own name carries a space or an accent, moving a folder cannot fix it. Tell us instead. Some tools handle those badly and we would rather know now.
 
 Open a terminal and run these two commands. They are the same on all three systems.
 

@@ -7,14 +7,12 @@
 from __future__ import annotations
 
 import argparse
-import configparser
 import datetime
 import enum
 import os
 import platform
 import re
 import shutil
-import socket
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -254,77 +252,6 @@ def probe_virtualisation() -> bool | None:
     return "True" in out
 
 
-def judge_shell(pwsh_present: bool) -> Result:
-    if platform.system() != "Windows":
-        return Result("shell", Status.PASS, "not applicable")
-    if pwsh_present:
-        return Result("shell", Status.PASS, "PowerShell 7 present")
-    return Result(
-        "shell",
-        Status.WARN,
-        "PowerShell 7 is not installed",
-        remedy="Nothing needs it yet. Run winget install --id Microsoft.PowerShell -e when you want it.",
-    )
-
-
-def probe_pwsh() -> bool:
-    return shutil.which("pwsh") is not None
-
-
-def judge_wsl(code: int, out: str) -> Result:
-    if platform.system() != "Windows":
-        return Result("wsl", Status.PASS, "not applicable")
-    if code != 0:
-        return Result(
-            "wsl",
-            Status.FAIL,
-            "WSL2 is not installed",
-            remedy="Install Docker Desktop and accept the WSL2 component it offers, then restart.",
-        )
-    return Result("wsl", Status.PASS, "present")
-
-
-def probe_wslconfig() -> str | None:
-    if platform.system() != "Windows":
-        return None
-    path = Path.home() / ".wslconfig"
-    try:
-        return path.read_text(encoding="utf-8-sig")
-    except (OSError, UnicodeDecodeError):
-        return None
-
-
-def judge_wslconfig(text: str | None) -> Result:
-    if platform.system() != "Windows":
-        return Result("wslconfig", Status.PASS, "not applicable")
-    if text is None:
-        return Result(
-            "wslconfig",
-            Status.WARN,
-            "no readable .wslconfig in your user folder",
-            remedy="Create it as described in the setup instructions. It matters from the fourth session.",
-        )
-    parser = configparser.ConfigParser()
-    try:
-        parser.read_string(text.lstrip("\ufeff"))
-    except configparser.Error:
-        return Result(
-            "wslconfig",
-            Status.WARN,
-            ".wslconfig could not be read as a settings file",
-            remedy="Compare it against the setup instructions and correct it.",
-        )
-    memory = parser.get("wsl2", "memory", fallback=None)
-    if memory is None:
-        return Result(
-            "wslconfig",
-            Status.WARN,
-            ".wslconfig has no memory line under [wsl2]",
-            remedy="Add memory=4GB, or memory=8GB if your laptop has 16 GB or more.",
-        )
-    return Result("wslconfig", Status.PASS, f"memory={memory}")
-
-
 MOVE_REMEDY = (
     "Move the folder to dev inside your user folder, then clone it again there. "
     "Run mkdir ~/dev and cd ~/dev first."
@@ -384,8 +311,6 @@ def probe_cloud_roots() -> list[Path]:
 
 WIDTH = 79
 ALLOWED_FACTS = ("os", "arch")
-NETWORK_HOSTS = ("github.com", "pypi.org")
-
 
 def render_report(results: list[Result], facts: dict[str, str]) -> str:
     head = " DSTA SETUP REPORT "
@@ -405,26 +330,6 @@ def render_report(results: list[Result], facts: dict[str, str]) -> str:
     )
     lines.append("-" * WIDTH)
     return "\n".join(lines) + "\n"
-
-
-def probe_network(host: str, port: int = 443, timeout: float = 5.0) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
-def judge_network(reachable: dict[str, bool]) -> Result:
-    down = sorted(h for h, ok in reachable.items() if not ok)
-    if not down:
-        return Result("network", Status.PASS, " ".join(f"{h} ok" for h in sorted(reachable)))
-    return Result(
-        "network",
-        Status.WARN,
-        f"cannot reach {', '.join(down)}",
-        remedy="If you are on a university or company network, tell us and we will look at it.",
-    )
 
 
 def guarded(check_id: str, fn, *args) -> Result:
@@ -472,7 +377,6 @@ def _facts() -> dict[str, str]:
 
 def _check_list() -> list[tuple[str, object]]:
     return [
-        ("shell", lambda: judge_shell(probe_pwsh())),
         ("memory", lambda: judge_memory(_memory_bytes())),
         ("disk", lambda: judge_disk(_disk_free_bytes())),
         ("git", lambda: judge_git(*run_tool(["git", "--version"]))),
@@ -482,10 +386,7 @@ def _check_list() -> list[tuple[str, object]]:
         ("docker-cli", lambda: judge_docker_cli(*run_tool(["docker", "--version"]))),
         ("docker-daemon", lambda: judge_docker_daemon(*run_tool(["docker", "info"]))),
         ("docker-run", _docker_run_check),
-        ("wsl", lambda: judge_wsl(*run_tool(["wsl", "--status"]))),
-        ("wslconfig", lambda: judge_wslconfig(probe_wslconfig())),
         ("path", lambda: judge_path(Path.cwd().resolve(), probe_cloud_roots())),
-        ("network", lambda: judge_network({h: probe_network(h) for h in NETWORK_HOSTS})),
     ]
 
 
