@@ -25,11 +25,9 @@ git switch lecture-1
 
 ## What a lecture branch holds
 
-- `notebooks` holds the notebook for the lecture, with the code examples and the optional exercises.
-- `src` holds the sample code for the course project. More parts arrive through the semester.
-- `data` holds the dataset the project trains on.
+One folder per lecture under `src`, so `src/lecture_02` for the second lecture. Inside it are the notebook for that lecture, its code examples and its optional exercises. Later branches also carry the data the project trains on.
 
-Folders are lower case and use an underscore rather than a space. Nothing in this repository has a space in its name. A space breaks any command that does not quote the path, and it breaks differently on each of the three systems. Keep to the same convention in your own repository.
+Nothing here has a space in its name, and folders are lower case with underscores. A space breaks any command that does not quote the path, and it breaks differently on each of the three systems. Use the same convention in your own repository.
 
 ## Work in your own repository, not in this one
 
