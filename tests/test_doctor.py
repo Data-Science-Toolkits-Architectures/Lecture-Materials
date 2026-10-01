@@ -1,9 +1,10 @@
-import pytest
 from pathlib import PurePosixPath, PureWindowsPath
+
+import pytest
 
 import doctor
 
-GB = 1024 ** 3
+GB = 1024**3
 
 
 def test_result_defaults_to_no_remedy():
@@ -254,9 +255,7 @@ def test_a_warning_alone_still_needs_nothing_sent():
 
 
 def test_a_failure_tells_the_student_to_email_the_block():
-    line = doctor.closing_line(
-        [doctor.Result("a", doctor.Status.FAIL, "no", remedy="fix it")]
-    )
+    line = doctor.closing_line([doctor.Result("a", doctor.Status.FAIL, "no", remedy="fix it")])
     assert "email" in line.lower()
     assert "DSTA setup" in line
 
@@ -303,7 +302,9 @@ def test_collect_survives_a_git_identity_lookup_that_raises(monkeypatch):
 
 
 def test_docker_run_failure_carries_the_error_text():
-    r = doctor.judge_docker_run(code=1, out="Unable to find image 'hello-world' locally", virtualisation=None)
+    r = doctor.judge_docker_run(
+        code=1, out="Unable to find image 'hello-world' locally", virtualisation=None
+    )
     assert r.status is doctor.Status.FAIL
     assert "Unable to find image" in r.detail
 

@@ -14,8 +14,9 @@ import platform
 import re
 import shutil
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
 
 VERSION = "0.1.0"
 
@@ -42,7 +43,7 @@ def exit_code(results: list[Result]) -> int:
     return 1 if any(r.status is Status.FAIL for r in results) else 0
 
 
-GB = 1024 ** 3
+GB = 1024**3
 MEMORY_FLOOR_GB = 8
 DISK_FLOOR_GB = 15
 
@@ -81,7 +82,7 @@ def _windows_memory_bytes() -> int:
 
     status = MemoryStatusEx()
     status.dwLength = ctypes.sizeof(MemoryStatusEx)
-    ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
+    ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))  # ty: ignore[unresolved-attribute]
     return int(status.ullTotalPhys)
 
 
@@ -132,9 +133,7 @@ def _hint(tool: str) -> str:
 
 def run_tool(argv: list[str]) -> tuple[int, str]:
     try:
-        proc = subprocess.run(
-            argv, capture_output=True, text=True, errors="replace", timeout=120
-        )
+        proc = subprocess.run(argv, capture_output=True, text=True, errors="replace", timeout=120)
     except FileNotFoundError:
         return 127, ""
     except subprocess.TimeoutExpired:
@@ -258,7 +257,7 @@ MOVE_REMEDY = (
 )
 
 
-def judge_path(path: Path, cloud_roots: list[Path]) -> Result:
+def judge_path(path: PurePath, cloud_roots: Sequence[PurePath]) -> Result:
     text = str(path)
     for root in cloud_roots:
         try:
@@ -311,6 +310,7 @@ def probe_cloud_roots() -> list[Path]:
 
 WIDTH = 79
 ALLOWED_FACTS = ("os", "arch")
+
 
 def render_report(results: list[Result], facts: dict[str, str]) -> str:
     head = " DSTA SETUP REPORT "

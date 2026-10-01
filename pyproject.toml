@@ -1,11 +1,43 @@
 [project]
-name = "lecture-materials-tooling"
+name = "lecture-materials"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = []
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "ipykernel>=7.4.0",
+    "pytest",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.9",
+    "ty>=0.0.84",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+omit = ["*/tests/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ty.environment]
+python-version = "3.13"
+
+[tool.ty.src]
+exclude = ["**/*.ipynb"]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "error"
