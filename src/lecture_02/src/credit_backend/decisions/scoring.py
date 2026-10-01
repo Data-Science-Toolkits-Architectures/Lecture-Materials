@@ -30,6 +30,7 @@ class PlaceholderScorer(Scorer):
         return 0.10
 
 
-# Task 6: your BaselineScorer(Scorer). A probability of default worked out by hand from
-# the features, until Model A replaces it in lecture 3.
-# Ask yourself: If I (with my human judgment) were to 
+# Task 6: each of you adds a scorer here, such as BaselineScorer(Scorer). It works out a
+# probability of default by hand from the features, until Model A replaces it in lecture 3.
+# Ask yourself: if I judged an applicant from these features alone, which figures would
+# worry me, and how much?

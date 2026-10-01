@@ -10,7 +10,7 @@ from credit_backend.decisions.service import DecisionService
 
 
 def build_service() -> PlaceholderScorer:
-    # Task 6: replace the placeholder with your baseline.
+    # Task 6: replace the placeholder with the baseline your team chose.
     scorer = PlaceholderScorer()
     return DecisionService(
         scorer=scorer,

@@ -2,7 +2,7 @@
 name = "credit-backend"
 version = "0.1.0"
 requires-python = ">=3.13"
-# Task 1: the packages the code imports.
+# Task 1: the packages your service needs to run.
 dependencies = []
 
 [build-system]
