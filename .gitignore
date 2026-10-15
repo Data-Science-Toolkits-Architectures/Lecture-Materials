@@ -25,6 +25,8 @@ ENV/
 .DS_Store
 *.log
 Thumbs.db
+/wandb/
+*.html
 .coverage
 .pytest_cache/
 src/lecture_*/uv.lock

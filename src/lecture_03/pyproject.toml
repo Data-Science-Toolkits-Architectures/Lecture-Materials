@@ -1,0 +1,25 @@
+[project]
+name = "credit-backend"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.143",
+    # New in lecture 3, for the training job and for loading Model A in the backend.
+    "joblib>=1.6",
+    "pandas>=3.0",
+    "scikit-learn>=1.9",
+    "wandb>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.17,<0.13.0"]
+build-backend = "uv_build"
+
+# New in lecture 3. The training job is a second package, next to the backend.
+[tool.uv.build-backend]
+module-name = ["credit_backend", "credit_training"]
